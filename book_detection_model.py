@@ -1,7 +1,6 @@
-# book_detection_model.py
 import base64
 import io
-import numpy as np
+
 import torch
 import torch.optim as optim
 import torchvision.transforms as transforms
@@ -11,6 +10,7 @@ from pytesseract import pytesseract
 from torch import nn
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FasterRCNN_ResNet50_FPN_Weights
+from torchvision.ops import nms  # Import NMS
 
 # Update Tesseract path for macOS
 pytesseract.tesseract_cmd = r'/opt/homebrew/bin/tesseract'
@@ -67,39 +67,22 @@ class CNNModel:
         return prediction
 
 
-def extract_texts_from_boxes(frame, boxes, scores, threshold=0.5, lang='eng+ara+heb'):
-    texts = []
-    h, w, _ = frame.shape
-    for box, score in zip(boxes, scores):
-        if score > threshold:
-            x1, y1, x2, y2 = box
-            x1, x2 = max(0, x1), min(w, x2)
-            y1, y2 = max(0, y1), min(h, y2)
-            if x1 < x2 and y1 < y2:
-                cropped_image = frame[int(y1):int(y2), int(x1):int(x2)]
-                try:
-                    pil_image = Image.fromarray(cropped_image)
-                    text = pytesseract.image_to_string(pil_image, lang=lang)
-                    texts.append({'box': (int(x1), int(y1), int(x2), int(y2)), 'text': text})
-                except Exception as e:
-                    print(f"Error processing image for OCR: {e}")
-    return texts
-
-
 def process_image(image_tensor, original_image, model):
     try:
         original_width, original_height = original_image.size
         image_tensor = image_tensor.to(model.device)
         predictions = model.predict(image_tensor)
-        pred_boxes = predictions[0]['boxes'].cpu().numpy()
-        scores = predictions[0]['scores'].cpu().numpy()
+        pred_boxes = predictions[0]['boxes']
+        scores = predictions[0]['scores']
+
+        # Apply NMS
+        keep = nms(pred_boxes, scores, 0.3)
+        pred_boxes = pred_boxes[keep].cpu().numpy()
 
         # Scaling the bounding boxes back to the original image size
         scale_x = original_width / 800
         scale_y = original_height / 800
         pred_boxes = pred_boxes * [scale_x, scale_y, scale_x, scale_y]
-
-        extracted_texts = extract_texts_from_boxes(np.array(original_image), pred_boxes, scores)
 
         books_info = []
         for box in pred_boxes:
@@ -108,7 +91,7 @@ def process_image(image_tensor, original_image, model):
             buffered = io.BytesIO()
             cropped_image.save(buffered, format="PNG")
             img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-            text = pytesseract.image_to_string(cropped_image)
+            text = pytesseract.image_to_string(cropped_image, lang='eng+ara+heb')
             books_info.append({
                 "box": [x1, y1, x2, y2],
                 "image": img_str,
