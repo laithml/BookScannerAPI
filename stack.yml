@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  bookscanner:
+    image: yourusername/bookscanner:latest
+    ports:
+      - "8502:5000"  # Maps the host's port 8502 to the container's port 5000
+    environment:
+      - PYTHONUNBUFFERED=1
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
