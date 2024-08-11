@@ -11,9 +11,12 @@ from torch import nn
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FasterRCNN_ResNet50_FPN_Weights
 from torchvision.ops import nms  # Import NMS
+import os
+import pytesseract
 
-# Update Tesseract path for macOS
-pytesseract.tesseract_cmd = r'/opt/homebrew/bin/tesseract'
+# Update Tesseract path
+pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
+
 
 
 def get_transform(train=True):
