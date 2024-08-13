@@ -4,10 +4,10 @@
 set -e
 
 echo "Building the Docker image..."
-docker-compose build
+docker compose build
 
 echo "Starting the Docker container with Docker Compose..."
-docker-compose up -d
+docker compose up -d
 
 echo "Running tests (if any)..."
 # Add commands to run your tests here. For example, if using pytest:

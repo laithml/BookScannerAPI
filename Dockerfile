@@ -7,23 +7,25 @@ ENV PYTHONUNBUFFERED=1
 # Set the working directory in the container
 WORKDIR /app
 
-# Install Tesseract OCR
-RUN apt-get update && apt-get install -y tesseract-ocr
+# Install dependencies required for Tesseract OCR and other necessary tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    libtesseract-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy only the necessary files first to leverage Docker cache
+# Install pip dependencies
 COPY requirements.txt /app/
-
-# Install any needed packages specified in requirements.txt, including pytesseract
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code into the container
 COPY . /app
 
-# Copy the model file into the image (if not already copied by the previous command)
+# Make sure the model file is correctly copied into the image
 COPY final_model_1.pth /app/final_model_1.pth
 
-# Expose port 5000 to allow external access
-EXPOSE 5000
+# Expose port 8000 to allow external access
+EXPOSE 8000
 
-# Run main.py when the container launches
-CMD ["python", "main.py"]
+# Use 'gunicorn' with Uvicorn worker for better performance in production
+CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "main:app", "--bind", "0.0.0.0:8000"]

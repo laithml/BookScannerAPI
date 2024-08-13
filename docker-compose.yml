@@ -4,6 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8502:5000"  # Maps the host's port 8502 to the container's port 5000
+      - "8502:8000"  # Maps the host's port 8502 to the container's port 5000
     environment:
       - PYTHONUNBUFFERED=1

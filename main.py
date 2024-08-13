@@ -1,5 +1,4 @@
-# main.py
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import JSONResponse
 from typing import List
 from book_detection_model import (CNNModel, process_image, get_transform)
@@ -13,10 +12,19 @@ model = CNNModel()
 model.load_model("final_model_1.pth")
 transform = get_transform(train=False)
 
+@app.get("/")
+async def root():
+    print("GET request to the root endpoint")
+    return {"message": "Welcome to the book detection API"}
 
 @app.post("/upload-images")
-async def upload_images(files: List[UploadFile] = File(...)):
+async def upload_images(request: Request, files: List[UploadFile] = File(...)):
     try:
+        if request.method == "GET":
+            print("GET request")
+        else:
+            print("POST request")
+
         results = []
         for idx, file in enumerate(files):
             content_type = file.content_type
@@ -29,7 +37,9 @@ async def upload_images(files: List[UploadFile] = File(...)):
             image_tensor = transform(image)
             books_info = process_image(image_tensor, image, model)
             results.extend(books_info)
+
         return JSONResponse(content={"books": results})
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
