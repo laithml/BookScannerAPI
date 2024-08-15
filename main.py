@@ -1,10 +1,11 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from typing import List
 from book_detection_model import (CNNModel, process_image, get_transform)
 from PIL import Image
 import uvicorn
 import io
+import requests
 
 app = FastAPI()
 
@@ -17,32 +18,23 @@ async def root():
     print("GET request to the root endpoint")
     return {"message": "Welcome to the book detection API"}
 
-@app.post("/upload-images")
-async def upload_images(request: Request, files: List[UploadFile] = File(...)):
+@app.post("/upload-image-url")
+async def upload_image_url(imageUrl: str):
+    print(f"POST request to the upload-image-url endpoint with URL: {imageUrl}")
     try:
-        if request.method == "GET":
-            print("GET request")
-        else:
-            print("POST request")
+        # Download the image from the URL
+        response = requests.get(imageUrl)
+        if response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Unable to download image from URL.")
 
-        results = []
-        for idx, file in enumerate(files):
-            content_type = file.content_type
-            filename = file.filename
-            if content_type not in ["image/png", "image/jpeg"]:
-                raise HTTPException(status_code=400, detail="Invalid file type. Only PNG and JPEG are supported.")
+        image = Image.open(io.BytesIO(response.content)).convert("RGB")
+        image_tensor = transform(image)
+        books_info = process_image(image_tensor, image, model)
 
-            image = await file.read()
-            image = Image.open(io.BytesIO(image)).convert("RGB")
-            image_tensor = transform(image)
-            books_info = process_image(image_tensor, image, model)
-            results.extend(books_info)
+        return JSONResponse(content={"books": books_info})
 
-        return JSONResponse(content={"books": results})
-    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
